@@ -1,0 +1,42 @@
+{
+  "title": "IT Security Awareness Walkthrough 2026",
+  "media_type": "video",
+  "duration_seconds": 180.0,
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 30.0,
+      "speaker": "CISO Sarah",
+      "text": "Welcome to the 2026 Security Onboarding. Remember that every security anomaly or suspicious email must be reported to our SOC within sixty minutes.",
+      "keyframe": "frame_001.png"
+    },
+    {
+      "start": 30.0,
+      "end": 65.0,
+      "speaker": "Security Architect Alex",
+      "text": "When setting up your workstation, our device policy automatically enforces a 5 minute screen lock and blocks unapproved USB flash storage devices.",
+      "keyframe": "frame_002.png"
+    },
+    {
+      "start": 65.0,
+      "end": 110.0,
+      "speaker": "Security Architect Alex",
+      "text": "For remote access, use our FIDO2 hardware tokens. Passwords must be at least 14 characters, and your account locks after five failed attempts.",
+      "keyframe": "frame_003.png"
+    },
+    {
+      "start": 110.0,
+      "end": 145.0,
+      "speaker": "Compliance Manager David",
+      "text": "All audit logs are preserved in immutable storage for 365 days. If a device is stolen, notify security operations within two hours so we can trigger a remote wipe.",
+      "keyframe": "frame_004.png"
+    },
+    {
+      "start": 145.0,
+      "end": 180.0,
+      "speaker": "CISO Sarah",
+      "text": "Finally, all vendor contracts require a signed Data Protection Addendum and an annual SOC 2 Type II audit. Thank you for keeping our infrastructure secure.",
+      "keyframe": "frame_005.png"
+    }
+  ]
+}

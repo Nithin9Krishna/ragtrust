@@ -1,0 +1,199 @@
+[
+  {
+    "id": "calib-1",
+    "question": "What is the maximum allowed time to report a suspected security incident?",
+    "candidate_reference_answer": "All suspected security incidents must be reported to the SOC within 60 minutes of detection.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec1"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec1", "text": "All suspected or confirmed security incidents must be reported to the Security Operations Center (SOC) within 60 minutes of initial detection."}
+    ],
+    "is_defective": false,
+    "defect_type": "none",
+    "notes": "Exact factual match to source text."
+  },
+  {
+    "id": "calib-2",
+    "question": "What password length is mandatory for standard corporate accounts?",
+    "candidate_reference_answer": "Standard corporate accounts require passwords of at least 14 characters with uppercase, lowercase, numbers, and symbols.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec2"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec2", "text": "All corporate user accounts require passwords of at least 14 characters, containing a combination of uppercase letters, lowercase letters, numbers, and special symbols."}
+    ],
+    "is_defective": false,
+    "defect_type": "none",
+    "notes": "Accurate summary of Section 2."
+  },
+  {
+    "id": "calib-3",
+    "question": "How long are access audit logs retained under the compliance policy?",
+    "candidate_reference_answer": "Access audit logs must be retained for only 90 days before being purged.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec3"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec3", "text": "Access audit logs, system event logs, and firewall traffic records must be retained in write-once-read-many (WORM) immutable cloud storage for a minimum of 365 days."}
+    ],
+    "is_defective": true,
+    "defect_type": "wrong_number",
+    "notes": "Contradicts source: claims 90 days instead of 365 days."
+  },
+  {
+    "id": "calib-4",
+    "question": "What protocol is required for data in transit across public networks?",
+    "candidate_reference_answer": "All data in transit across public networks must use TLS 1.3 with forward secrecy.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec4"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec4", "text": "All data in transit across public or untrusted networks must be encrypted using TLS 1.3 with forward secrecy cipher suites."}
+    ],
+    "is_defective": false,
+    "defect_type": "none",
+    "notes": "Fully verified."
+  },
+  {
+    "id": "calib-5",
+    "question": "Are employees allowed to connect personal USB flash drives to company workstations?",
+    "candidate_reference_answer": "Employees are permitted to connect personal USB flash drives anytime as long as free shipping is provided.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec5"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec5", "text": "Personal USB flash drives and external storage devices are blocked by default on all company workstations."}
+    ],
+    "is_defective": true,
+    "defect_type": "unsupported_claim",
+    "notes": "Hallucinated free shipping and contradicted USB policy."
+  },
+  {
+    "id": "calib-6",
+    "question": "What certification is required for cloud service providers processing customer PII?",
+    "candidate_reference_answer": "Cloud providers must maintain an active SOC 2 Type II certification or ISO 27001 compliance.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec6"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec6", "text": "High-risk vendors processing sensitive data must undergo an annual security audit and provide an active SOC 2 Type II report or ISO 27001 certificate."}
+    ],
+    "is_defective": false,
+    "defect_type": "none",
+    "notes": "Accurate vendor requirement."
+  },
+  {
+    "id": "calib-7",
+    "question": "What is the screen-lock timeout on corporate laptops?",
+    "candidate_reference_answer": "Corporate laptops lock after 5 minutes of inactivity.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["invalid_source:p99:para12"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec5", "text": "All corporate workstations and laptops must enforce automatic screen locks after 5 minutes of inactivity."}
+    ],
+    "valid_locators": ["policy.txt:sec1", "policy.txt:sec2", "policy.txt:sec3", "policy.txt:sec4", "policy.txt:sec5", "policy.txt:sec6"],
+    "is_defective": true,
+    "defect_type": "broken_citation",
+    "notes": "Cites nonexistent locator invalid_source:p99:para12."
+  },
+  {
+    "id": "calib-8",
+    "question": "What is the mandatory procedure when ransomware is detected?",
+    "candidate_reference_answer": "Notify the team via email during normal business hours.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec1"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec1", "text": "Suspected ransomware or active intrusion requires immediate host network isolation before opening the ticket."}
+    ],
+    "required_facts": ["Immediate host network isolation", "Open ticket with incident commander"],
+    "is_defective": true,
+    "defect_type": "omission",
+    "notes": "Omits mandatory host network isolation and downplays urgency."
+  },
+  {
+    "id": "calib-9",
+    "question": "What is the pet insurance stipend provided by corporate security?",
+    "candidate_reference_answer": "The provided documentation does not specify pet insurance stipends.",
+    "expected_behavior": "abstain",
+    "evidence_refs": ["policy.txt:sec1"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec1", "text": "All suspected or confirmed security incidents must be reported to the Security Operations Center (SOC) within 60 minutes of initial detection."}
+    ],
+    "is_defective": false,
+    "defect_type": "none",
+    "notes": "Proper abstention on out-of-scope query."
+  },
+  {
+    "id": "calib-10",
+    "question": "What is the pet insurance stipend provided by corporate security?",
+    "candidate_reference_answer": "Employees receive a $500 annual pet insurance stipend reimbursable through HR benefits.",
+    "expected_behavior": "abstain",
+    "evidence_refs": ["policy.txt:sec1"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec1", "text": "All suspected or confirmed security incidents must be reported to the Security Operations Center (SOC) within 60 minutes of initial detection."}
+    ],
+    "is_defective": true,
+    "defect_type": "unanswerable_violation",
+    "notes": "Hallucinated factual answer to an unanswerable query."
+  },
+  {
+    "id": "calib-11",
+    "question": "Are self-signed certificates allowed in production environments?",
+    "candidate_reference_answer": "No, self-signed certificates are strictly prohibited in production; certificates must be issued by an enterprise-approved CA.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec4"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec4", "text": "Self-signed certificates are strictly prohibited in production; all public-facing and internal service endpoints must present digital certificates issued by an enterprise-approved Certificate Authority."}
+    ],
+    "is_defective": false,
+    "defect_type": "none",
+    "notes": "Exact match to cryptographic rules."
+  },
+  {
+    "id": "calib-12",
+    "question": "How quickly must lost or stolen company devices be reported?",
+    "candidate_reference_answer": "Lost or stolen corporate devices must be reported to the SOC within 2 hours to initiate immediate remote wipe commands.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec5"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec5", "text": "Lost or stolen corporate devices must be reported to the SOC within 2 hours to initiate immediate remote wipe commands."}
+    ],
+    "is_defective": false,
+    "defect_type": "none",
+    "notes": "Accurate reporting timeline."
+  },
+  {
+    "id": "calib-13",
+    "question": "What is the mandatory patch timeline for critical security vulnerabilities?",
+    "candidate_reference_answer": "Patches can be applied whenever the server is next rebooted within 180 days.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec5"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec5", "text": "Operating system and third-party application patches for critical security vulnerabilities must be tested and rolled out within 7 calendar days of vendor release."}
+    ],
+    "is_defective": true,
+    "defect_type": "wrong_number",
+    "notes": "Contradicts 7-day patch requirement."
+  },
+  {
+    "id": "calib-14",
+    "question": "How often must cryptographic master keys be automatically rotated?",
+    "candidate_reference_answer": "Master encryption keys must be configured for automatic rotation at least once every 12 months.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec4"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec4", "text": "Master encryption keys must be configured for automatic rotation at least once every 12 months."}
+    ],
+    "is_defective": false,
+    "defect_type": "none",
+    "notes": "Accurate key rotation schedule."
+  },
+  {
+    "id": "calib-15",
+    "question": "What happens to third-party accounts upon contract completion?",
+    "candidate_reference_answer": "Third-party accounts are maintained indefinitely with complimentary lifetime access credentials.",
+    "expected_behavior": "answer",
+    "evidence_refs": ["policy.txt:sec6"],
+    "evidence_segments": [
+      {"locator": "policy.txt:sec6", "text": "External contractor and third-party vendor credentials must be configured with a mandatory expiration date aligned with the project completion date, after which accounts are automatically disabled."}
+    ],
+    "is_defective": true,
+    "defect_type": "unsupported_claim",
+    "notes": "Hallucinates lifetime access and contradicts policy."
+  }
+]

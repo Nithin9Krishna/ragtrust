@@ -1,0 +1,25 @@
+services:
+  ui:
+    build: .
+    environment:
+      RAGTRUST_SERVICE: ui
+      PORT: 8501
+      RAGTRUST_MODE: fixture
+    ports:
+      - "8501:8501"
+    volumes:
+      - ragtrust-data:/app/data
+
+  api:
+    build: .
+    environment:
+      RAGTRUST_SERVICE: api
+      PORT: 8000
+      RAGTRUST_MODE: fixture
+    ports:
+      - "8000:8000"
+    volumes:
+      - ragtrust-data:/app/data
+
+volumes:
+  ragtrust-data:
