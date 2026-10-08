@@ -31,8 +31,10 @@ def main():
     if not args.public_demo and not endpoint:
         raise SystemExit("Configure FOUNDRY_PROJECT_ENDPOINT first")
     password_path = ROOT / ".private" / "demo-password.txt"
-    password = ""
-    if not args.public_demo:
+    # Retain a legacy gate during deployment/rollback. Public-aware UI revisions
+    # ignore this gate only after selecting an isolated visitor workspace.
+    password = password_path.read_text().strip() if password_path.exists() else secrets.token_urlsafe(32)
+    if not args.public_demo and not password_path.exists():
         password_path.parent.mkdir(mode=0o700, exist_ok=True)
         if not password_path.exists():
             fd = os.open(password_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -54,7 +56,7 @@ def main():
     if args.public_demo:
         config.update({
             "RAGTRUST_PUBLIC_DEMO": "true", "RAGTRUST_MODE": "fixture",
-            "RAGTRUST_ACCESS_PASSWORD": "", "RAGTRUST_MAX_REPAIRS": "1",
+            "RAGTRUST_MAX_REPAIRS": "1",
             "FOUNDRY_PROJECT_ENDPOINT": "", "PROJECT_CONNECTION_STRING": "",
             "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
             "RAGTRUST_SERVICE": "ui", "STREAMLIT_SERVER_MAX_UPLOAD_SIZE": "5",
@@ -62,10 +64,6 @@ def main():
         })
     else:
         config["RAGTRUST_PUBLIC_DEMO"] = "false"
-    # Older revisions may not implement visitor isolation. Keep the app stopped
-    # while changing from a shared private workspace to the public revision.
-    if args.public_demo:
-        az("webapp", "stop", "-g", args.resource_group, "-n", args.app)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json") as file:
         json.dump(config, file); file.flush()
         az("webapp", "config", "appsettings", "set", "-g", args.resource_group, "-n", args.app, "--settings", "@" + file.name)
@@ -85,9 +83,7 @@ def main():
     else:
         print(f"Deploying {archive.name}; access password saved privately at {password_path}", flush=True)
     result = az("webapp", "deploy", "-g", args.resource_group, "-n", args.app, "--src-path", str(archive),
-       "--type", "zip", "--restart", "true", "--timeout", "900000")
-    if args.public_demo:
-        az("webapp", "start", "-g", args.resource_group, "-n", args.app)
+       "--type", "zip", "--restart", "true", "--track-status", "false", "--timeout", "900000")
     print(result)
 
 
