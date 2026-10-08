@@ -168,13 +168,13 @@ class DeterministicQualityEngine:
         """
         counts = Counter(generated_topics)
         met_quotas = 0
-        total_targets = len(topic_quotas)
+        total_targets = sum(quota > 0 for quota in topic_quotas.values())
         breakdown = {}
 
         for topic, quota in topic_quotas.items():
             actual = counts.get(topic, 0)
             met = actual >= quota
-            if met:
+            if met and quota > 0:
                 met_quotas += 1
             breakdown[topic] = {
                 "target": quota,

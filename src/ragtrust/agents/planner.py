@@ -23,11 +23,21 @@ class PlanningAgent(BaseAgent):
 
         if mode == "foundry":
             plan = self._run_foundry(golden_examples, evidence_segments, config, domain)
+            plan = CoveragePlan.model_validate(plan).model_dump()
+            if config.topic_quotas:
+                plan["topic_quotas"] = config.topic_quotas
+            elif any(v < 0 for v in plan["topic_quotas"].values()) or sum(plan["topic_quotas"].values()) != config.candidate_target:
+                plan["topic_quotas"] = self._run_fixture(golden_examples, evidence_segments, config, domain)["topic_quotas"]
+            plan["difficulty_mix"] = config.difficulty_mix
+            plan["question_types"] = config.question_types
+            plan["language"] = config.language
+            plan["total_planned"] = config.candidate_target
             latency = (time.time() - start) * 1000
             self.record_usage(latency, tokens_est=1200)
             return plan
 
         plan = self._run_fixture(golden_examples, evidence_segments, config, domain)
+        plan["language"] = config.language
         latency = (time.time() - start) * 1000
         self.record_usage(latency, tokens_est=200)
         return plan
@@ -118,6 +128,7 @@ Return ONLY valid JSON matching this schema:
             {
                 "domain": domain,
                 "candidate_target": config.candidate_target,
+                "configuration": config.model_dump(),
                 "golden_examples": [
                     {"question": e.get("question"), "topic": e.get("topic"), "answer": e.get("trusted_answer")}
                     for e in golden_examples[:10]

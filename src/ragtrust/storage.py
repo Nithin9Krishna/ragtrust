@@ -3,18 +3,18 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from .config import settings
+from .db import workspace_data_dir
 
 
 class LocalStorage:
     """Project-isolated local storage with a Blob-compatible boundary."""
 
     def __init__(self, root: Path | None = None):
-        self.root = root or settings.data_dir / "storage"
+        self.root = root or workspace_data_dir() / "storage"
         self.root.mkdir(parents=True, exist_ok=True)
 
     def _safe(self, value: str) -> str:
-        return "".join(c for c in value if c.isalnum() or c in "-_.") or "file"
+        return "".join(c for c in value if c.isalnum() or c in "-_.").strip(".") or "file"
 
     def put(self, project_id: str, category: str, filename: str, content: bytes) -> tuple[str, str]:
         digest = hashlib.sha256(content).hexdigest()
@@ -34,4 +34,3 @@ class LocalStorage:
         path = self.root / self._safe(project_id) / "releases" / f"v{version}"
         path.mkdir(parents=True, exist_ok=False)
         return path
-

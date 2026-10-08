@@ -33,6 +33,9 @@ class Settings:
     # Generation & evaluation limits
     max_candidates: int = int(os.getenv("RAGTRUST_MAX_CANDIDATES", "100"))
     max_repairs: int = int(os.getenv("RAGTRUST_MAX_REPAIRS", "2"))
+    access_password: str | None = os.getenv("RAGTRUST_ACCESS_PASSWORD")
+    agent_version: str | None = os.getenv("FOUNDRY_AGENT_VERSION")
+    public_demo: bool = os.getenv("RAGTRUST_PUBLIC_DEMO", "false").lower() in {"1", "true", "yes", "on"}
 
     @property
     def has_foundry_config(self) -> bool:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hmac
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from ragtrust.config import settings
-from ragtrust.db import init_db, session_scope
+from ragtrust.db import PublicWorkspace, activate_workspace, init_db, session_scope
 from ragtrust.models import (
     CandidateCase,
     DatasetVersion,
@@ -28,11 +29,6 @@ from ragtrust.services.calibration import EvaluatorCalibrationEngine
 from ragtrust.services.extractor import SourceExtractor, compute_sha256
 from ragtrust.storage import LocalStorage
 
-# Initialize DB & service
-init_db()
-service = OrchestrationService()
-storage = LocalStorage()
-
 st.set_page_config(
     page_title="RAGTrust — Golden-Guided Synthetic Evaluation Platform",
     page_icon="🛡️",
@@ -40,12 +36,43 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Clear any context left by an earlier script run before selecting this visitor.
+activate_workspace(None)
+if settings.public_demo:
+    workspace = st.session_state.get("_public_workspace")
+    if workspace is None or workspace.expired:
+        st.session_state.clear()
+        workspace = PublicWorkspace()
+        st.session_state["_public_workspace"] = workspace
+    activate_workspace(workspace)
+    if "_public_service" not in st.session_state:
+        st.session_state["_public_service"] = OrchestrationService()
+    service = st.session_state["_public_service"]
+else:
+    init_db()
+    service = OrchestrationService()
+storage = LocalStorage()
+
+if not settings.public_demo and settings.access_password and not st.session_state.get("authenticated"):
+    st.title("RAGTrust")
+    st.write("Generate evidence-grounded evaluation datasets with four Microsoft Foundry agents.")
+    with st.form("demo_signin"):
+        password = st.text_input("Demo access password", type="password")
+        submitted = st.form_submit_button("Open workspace")
+    if submitted:
+        if hmac.compare_digest(password.encode(), settings.access_password.encode()):
+            st.session_state["authenticated"] = True
+            st.rerun()
+        st.error("The password is incorrect.")
+    st.caption("Private demonstration workspace. Request access from the project owner.")
+    st.stop()
+
 # Custom Styling
 st.markdown(
     """
     <style>
-    .main-header { font-size: 26px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
-    .sub-header { font-size: 14px; color: #475569; margin-bottom: 16px; }
+    .main-header { font-size: 26px; font-weight: 700; color: inherit; margin-bottom: 2px; }
+    .sub-header { font-size: 14px; color: inherit; opacity: 0.8; margin-bottom: 16px; }
     .metric-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; text-align: center; }
     .metric-val { font-size: 24px; font-weight: 700; color: #0f172a; }
     .metric-lbl { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 600; }
@@ -59,20 +86,28 @@ st.markdown(
 # Sidebar
 with st.sidebar:
     st.markdown("### 🛡️ RAGTrust Platform")
-    st.caption("Microsoft Agent-a-thon: Level 3 Architect")
+    st.caption("Build evaluation datasets. Inspect and compare RAG responses.")
+    if settings.public_demo:
+        st.info("Free public demo · no sign-in required")
+        st.caption("Your workspace is separate from other visitors. It expires after two hours or after this session is lost. Download your results before leaving.")
+        if st.button("Reset my workspace", use_container_width=True):
+            st.session_state.clear()
+            activate_workspace(None)
+            st.rerun()
+    st.link_button("GitHub source", "https://github.com/Nithin9Krishna/ragtrust", use_container_width=True)
     st.divider()
 
     # Engine Mode Switcher
     st.markdown("#### ⚙️ Execution Engine")
     mode_choice = st.radio(
         "Agent Backend",
-        options=["fixture", "foundry"],
+        options=["fixture"] if settings.public_demo else ["fixture", "foundry"],
         format_func=lambda x: "🧪 Fixture (Local & Offline)" if x == "fixture" else "☁️ Microsoft Foundry (Live gpt-4o)",
-        index=0 if settings.mode == "fixture" else 1,
+        index=0 if settings.public_demo or settings.mode == "fixture" else 1,
     )
     if mode_choice == "foundry":
         if settings.has_foundry_config:
-            st.success(f"Connected: {settings.project_name or 'ragtrust-architect'}")
+            st.success(f"Configured: {settings.project_name or 'ragtrust-architect'}")
             trace_state = "App Insights configured" if settings.appinsights_connection_string else "App Insights not configured"
             st.caption(f"Model: {settings.model_deployment_name} • {trace_state}")
         else:
@@ -146,6 +181,9 @@ with st.sidebar:
 # Main Header
 st.markdown('<div class="main-header">🛡️ RAGTrust — Golden-Guided Synthetic Evaluation Data Platform</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Autonomous multi-agent generation, independent claim validation, bounded repairs, and explainable dataset quality assurance.</div>', unsafe_allow_html=True)
+if settings.public_demo:
+    st.info("Start with **Load IT Security Demo Data** in the sidebar, generate a small dataset in **3. Run & Monitor**, release it in **7. Export & Release**, then compare your endpoint or recorded answers in **8. RAG Target Test**.")
+    st.caption("Generation and verification use deterministic fixture rules in this public demo. RAG tests capture real endpoint or uploaded responses. Lexical overlap does not establish factual accuracy. Upload only non-confidential sample data; requests to your endpoint send dataset questions.")
 
 # Tabs
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
@@ -249,10 +287,10 @@ with tab2:
 
         st.markdown("Configure your generation and quality requirements:")
         c1, c2, c3, c4 = st.columns(4)
-        c_target = c1.number_input("Candidate Target", min_value=4, max_value=200, value=12)
-        a_target = c2.number_input("Accepted Target", min_value=2, max_value=200, value=8)
-        max_rep = c3.number_input("Max Repairs per Case", min_value=0, max_value=5, value=2)
-        budget = c4.number_input("Token / Call Budget", min_value=10, max_value=1000, value=50)
+        c_target = c1.number_input("Candidate Target", min_value=2, max_value=settings.max_candidates, value=min(4, settings.max_candidates))
+        a_target = c2.number_input("Accepted Target", min_value=1, max_value=int(c_target), value=min(2, int(c_target)))
+        max_rep = c3.number_input("Max Repairs per Case", min_value=0, max_value=settings.max_repairs, value=min(1, settings.max_repairs))
+        budget = c4.number_input("Candidate budget units", min_value=2, max_value=1000, value=20)
 
         gen_config = GenerationConfig(
             candidate_target=c_target,
@@ -269,10 +307,10 @@ with tab2:
                     {"golden_examples": golden_dicts, "evidence_segments": ev_dicts, "config": gen_config, "domain": "security"},
                     mode=mode_choice,
                 )
-                st.session_state["current_plan"] = plan
+                st.session_state[f"plan_{active_project_id}"] = plan
 
-        if "current_plan" in st.session_state:
-            plan = st.session_state["current_plan"]
+        if f"plan_{active_project_id}" in st.session_state:
+            plan = st.session_state[f"plan_{active_project_id}"]
             st.success("Coverage Plan Created!")
 
             col_p1, col_p2 = st.columns(2)
@@ -307,21 +345,26 @@ with tab3:
             "Execute the orchestrated pipeline: **Generation Agent** -> **Exact Deduplication** -> **Independent Validation Agent** -> **Refinement Repair Agent** (bounded retries)."
         )
 
-        if st.button("🚀 Start Generation & Verification Run", type="primary"):
-            plan_obj = st.session_state.get("current_plan")
-            plan_config = GenerationConfig(candidate_target=12, accepted_target=8, max_repairs=2)
-            
-            with st.status("Executing Multi-Agent Workflow...", expanded=True) as status:
-                st.write("1. Planning Agent: Formulating coverage quotas...")
-                st.write("2. Generation Agent: Generating candidate cases grounded in evidence...")
-                st.write("3. Python Deterministic Engine: Enforcing schemas, citations, and exact deduplication...")
-                st.write("4. Validation Agent: Decomposing claims and verifying support in isolation...")
-                st.write("5. Repair Agent: Excising unsupported claims with bounded retries...")
-                st.write("6. Quality Aggregator: Calculating Jensen-Shannon distance and coverage metrics...")
-
-                run_id = service.execute_generation_run(active_project_id, plan_config, mode=mode_choice)
-                status.update(label=f"Run Completed! (Run ID: {run_id})", state="complete", expanded=False)
+        with st.form("generation_configuration"):
+            cfg1, cfg2, cfg3 = st.columns(3)
+            candidate_target = cfg1.number_input("Candidate target", min_value=1, max_value=settings.max_candidates, value=min(4, settings.max_candidates))
+            accepted_target = cfg2.number_input("Accepted target", min_value=1, max_value=settings.max_candidates, value=2)
+            repair_limit = cfg3.number_input("Repair limit per case", min_value=0, max_value=settings.max_repairs, value=min(1, settings.max_repairs))
+            language = st.text_input("Output language", value="English")
+            budget_units = st.number_input("Candidate budget units (2 units per candidate; not currency)", min_value=2, value=20)
+            quotas_json = st.text_area("Optional approved topic quotas (JSON; sum must equal candidate target)", value="{}")
+            start_run = st.form_submit_button("Start Generation & Verification Run", type="primary")
+        if start_run:
+            try:
+                plan_config = GenerationConfig(candidate_target=candidate_target, accepted_target=accepted_target,
+                    max_repairs=repair_limit, language=language, budget_units=budget_units,
+                    topic_quotas=json.loads(quotas_json))
+                run_id = service.enqueue_generation_run(active_project_id, plan_config, mode=mode_choice)
                 st.session_state["active_run_id"] = run_id
+                st.success("Run queued. Refresh progress below to inspect its status.")
+            except (ValueError, TypeError) as exc:
+                st.error(str(exc))
+        st.button("Refresh run progress")
 
         # Show run history and details
         with session_scope() as session:
@@ -332,6 +375,12 @@ with tab3:
             st.markdown("#### Run Summary & Live Metrics")
             selected_run = runs[0]
             run_summary = selected_run.progress_json or {}
+            st.write(f"Run status: {selected_run.status} | Mode: {selected_run.mode} | ID: {selected_run.id}")
+            if selected_run.error:
+                st.error(f"Run failed: {selected_run.error}")
+            if selected_run.status in {"queued", "running"} and st.button("Cancel active run"):
+                service.cancel_generation_run(selected_run.id)
+                st.info("Cancellation requested; the active model call will finish first.")
 
             r1, r2, r3, r4, r5, r6 = st.columns(6)
             r1.metric("Generated", run_summary.get("generated", 0))
@@ -352,7 +401,7 @@ with tab3:
 with tab4:
     st.subheader("Case-Level Evidence & Claim Verification Inspector")
     with session_scope() as session:
-        all_cases = session.query(CandidateCase).order_by(CandidateCase.created_at.desc()).all()
+        all_cases = session.query(CandidateCase).filter_by(project_id=active_project_id).order_by(CandidateCase.created_at.desc()).all()
 
     if not all_cases:
         st.info("No candidate cases generated yet.")
@@ -413,7 +462,7 @@ with tab4:
 with tab5:
     st.subheader("Dataset-Level Quality & Diversity Analytics")
     with session_scope() as session:
-        last_run = session.query(GenerationRun).order_by(GenerationRun.created_at.desc()).first()
+        last_run = session.query(GenerationRun).filter_by(project_id=active_project_id).order_by(GenerationRun.created_at.desc()).first()
 
     if not last_run or not last_run.progress_json:
         st.info("Run generation to view dataset-level analytics.")
@@ -428,7 +477,7 @@ with tab5:
         q1, q2, q3, q4 = st.columns(4)
         q1.metric("Topic Coverage", f"{tc.get('coverage_ratio', 1.0)*100:.1f}%", f"{tc.get('met_topics',0)}/{tc.get('total_topics',0)} met")
         q2.metric("Exact Duplicates", f"{dupe_rate*100:.1f}%", "Hash collisions")
-        q3.metric("JS Distribution Distance", f"{js_div:.4f}", "Target vs Generated")
+        q3.metric("JS Distribution Distance", f"{js_div:.4f}", "Target vs Accepted")
         q4.metric("Avg Faithfulness", f"{avg_faith:.3f}" if avg_faith is not None else "Not assessed", "Accepted-case claim support")
 
         st.divider()
@@ -445,11 +494,11 @@ with tab5:
         with col_q2:
             st.markdown("#### Redundancy Analysis")
             if sem_dupes:
-                st.warning(f"Detected {len(sem_dupes)} semantic near-duplicate pair(s) with similarity >= 0.82:")
+                st.warning(f"Detected {len(sem_dupes)} lexical near-duplicate pair(s) with similarity >= 0.82:")
                 for p in sem_dupes[:3]:
                     st.caption(f"**Sim: {p['similarity']}** • '{p['text_1']}' vs '{p['text_2']}'")
             else:
-                st.success("Zero semantic near-duplicates detected above threshold.")
+                st.success("Zero lexical near-duplicates detected above the configured threshold.")
 
 # -----------------------------------------------------------------------------
 # TAB 6: Evaluator Calibration
@@ -518,7 +567,7 @@ with tab6:
 with tab7:
     st.subheader("Versioned Export & Immutable Release Center")
     with session_scope() as session:
-        runs = session.query(GenerationRun).filter_by(project_id=active_project_id).order_by(GenerationRun.created_at.desc()).all()
+        runs = session.query(GenerationRun).filter_by(project_id=active_project_id).filter(GenerationRun.status.in_(["completed", "completed_shortfall"])).order_by(GenerationRun.created_at.desc()).all()
         versions = session.query(DatasetVersion).filter_by(project_id=active_project_id).order_by(DatasetVersion.created_at.desc()).all()
 
     if not runs:
@@ -571,6 +620,13 @@ with tab7:
                         file_name=f"ragtrust_quality_report_v{v.version_number}.html",
                         mime="text/html",
                     )
+                assessment_path = files.get("case_assessments", {}).get("path")
+                if assessment_path and Path(assessment_path).exists():
+                    st.download_button("Download all case assessments", Path(assessment_path).read_bytes(),
+                        file_name=f"assessments_v{v.version_number}.jsonl", key=f"assessments_{v.id}")
+                if qr and Path(qr.json_path).exists():
+                    st.download_button("Download machine-readable summary", Path(qr.json_path).read_bytes(),
+                        file_name=f"summary_v{v.version_number}.json", key=f"summary_{v.id}")
 
 # -----------------------------------------------------------------------------
 # TAB 8: RAG Target Testing
@@ -583,33 +639,47 @@ with tab8:
     )
 
     with session_scope() as session:
-        released_versions = session.query(DatasetVersion).order_by(DatasetVersion.created_at.desc()).all()
+        released_versions = session.query(DatasetVersion).filter_by(project_id=active_project_id).order_by(DatasetVersion.created_at.desc()).all()
 
     if not released_versions:
         st.info("Release an approved dataset version in Tab 7 first.")
     else:
         v_select = st.selectbox("Select Approved Dataset Version", [v.id for v in released_versions], format_func=lambda x: f"Version {x[:8]}")
         endpoint_url = st.text_input("RAG Endpoint URL (Optional)", placeholder="https://my-rag-service.azurewebsites.net/api/query")
+        recorded = st.text_area("Or recorded responses as a JSON question-to-answer mapping", value="{}")
+        demo_mode = st.checkbox("Use clearly labelled fixture responses (demonstration only)", value=False)
 
+        st.caption('Endpoint contract: public HTTPS on port 443; POST {"query": "your question"}; return {"answer": "your answer"} or {"response": "your answer"}. Redirects and private network addresses are rejected.')
+        response_file = st.file_uploader("Upload recorded responses (JSON question-to-answer mapping)", type=["json"], key="rag_recorded_responses")
         if st.button("Run RAG Endpoint Evaluation"):
-            req = RagEvalRequest(
-                endpoint_url=endpoint_url.strip() or None,
-                endpoint_label="Azure RAG Service (GPT-4o)",
-            )
             with st.spinner("Executing RAG evaluation queries..."):
-                rag_results = service.run_rag_test(v_select, req)
-                st.session_state["rag_results"] = rag_results
+                try:
+                    req = RagEvalRequest(
+                        endpoint_url=endpoint_url.strip() or None,
+                        endpoint_label="Configured endpoint" if endpoint_url else "Recorded or fixture responses",
+                        mock_responses=json.loads(response_file.getvalue() if response_file else recorded),
+                        demo_mode=demo_mode,
+                    )
+                    rag_results = service.run_rag_test(v_select, req)
+                    st.session_state[f"rag_results_{active_project_id}"] = rag_results
+                except ValueError as exc:
+                    st.error(str(exc))
 
-        if "rag_results" in st.session_state:
-            rr = st.session_state["rag_results"]
+        if f"rag_results_{active_project_id}" in st.session_state:
+            rr = st.session_state[f"rag_results_{active_project_id}"]
             st.success(f"Evaluated {rr.get('total_cases_evaluated')} queries against target system!")
+            st.info(f"Evaluation mode: {rr.get('evaluation_mode')}; failed responses: {rr.get('errors')}")
+            for limitation in rr.get("limitations", []):
+                st.caption(limitation)
 
             rag_m1, rag_m2, rag_m3, rag_m4 = st.columns(4)
-            rag_m1.metric("System Faithfulness", f"{rr.get('avg_faithfulness', 0)*100:.1f}%")
-            rag_m2.metric("System Relevance", f"{rr.get('avg_relevance', 0)*100:.1f}%")
-            rag_m3.metric("Abstention Accuracy", f"{rr.get('abstention_accuracy', 0)*100:.1f}%")
+            overlap = rr.get("avg_reference_token_recall")
+            abstention = rr.get("abstention_accuracy")
+            rag_m1.metric("Reference token recall", f"{overlap*100:.1f}%" if overlap is not None else "Not assessed")
+            rag_m2.metric("Semantic quality", "Not assessed")
+            rag_m3.metric("Abstention phrase match", f"{abstention*100:.1f}%" if abstention is not None else "Not assessed")
             rag_m4.metric("Avg Latency", f"{rr.get('avg_latency_ms', 0):.1f} ms")
 
-            st.markdown("#### System Query Responses & Faithfulness")
+            st.markdown("#### Captured Responses and Lexical Comparison")
             df_rag = pd.DataFrame(rr.get("results", []))
-            st.dataframe(df_rag[["question", "deployed_system_answer", "faithfulness", "latency_ms"]], use_container_width=True)
+            st.dataframe(df_rag, use_container_width=True)

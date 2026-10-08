@@ -13,6 +13,7 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 COPY demo_data ./demo_data
 COPY scripts ./scripts
+COPY .streamlit ./.streamlit
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir . \
     && chmod +x /app/scripts/start.sh \

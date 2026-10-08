@@ -7,3 +7,11 @@ data/*
 !data/.gitkeep
 artifacts/
 *.egg-info/
+.private/
+tmp/
+output/
+.DS_Store
+dist/
+build/
+.env.*
+!.env.example

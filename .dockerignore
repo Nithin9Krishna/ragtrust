@@ -8,3 +8,7 @@ data/*
 !data/.gitkeep
 dist
 artifacts
+.private
+tmp
+output
+*.egg-info

@@ -69,6 +69,10 @@ class GenerationConfig(BaseModel):
             raise ValueError("accepted_target cannot exceed candidate_target")
         if abs(sum(self.difficulty_mix.values()) - 1.0) > 0.02:
             raise ValueError("difficulty_mix must sum to 1.0")
+        if any(value < 0 or value > 1 for value in self.difficulty_mix.values()):
+            raise ValueError("difficulty_mix values must be between 0 and 1")
+        if self.topic_quotas and (any(value < 0 for value in self.topic_quotas.values()) or sum(self.topic_quotas.values()) != self.candidate_target):
+            raise ValueError("topic_quotas must be nonnegative and sum to candidate_target")
         return self
 
 
@@ -84,8 +88,8 @@ class CoveragePlan(BaseModel):
 
 
 class CandidatePayload(BaseModel):
-    question: str
-    candidate_reference_answer: str
+    question: str = Field(min_length=1)
+    candidate_reference_answer: str = Field(min_length=1)
     expected_behavior: str = Field(default="answer", pattern="^(answer|clarify|abstain)$")
     topic: str
     scenario_type: str
@@ -108,13 +112,13 @@ class ClaimAssessment(BaseModel):
 
 
 class VerificationOutput(BaseModel):
-    faithfulness_score: float
-    factual_precision: float
-    factual_recall: float
-    factual_f1: float
-    completeness_score: float
-    relevance_score: float
-    answerability_score: float
+    faithfulness_score: float = Field(ge=0, le=1)
+    factual_precision: float = Field(ge=0, le=1)
+    factual_recall: float = Field(ge=0, le=1)
+    factual_f1: float = Field(ge=0, le=1)
+    completeness_score: float = Field(ge=0, le=1)
+    relevance_score: float = Field(ge=0, le=1)
+    answerability_score: float = Field(ge=0, le=1)
     citation_valid: bool
     claims: list[ClaimAssessment]
     failed_claims: list[str] = Field(default_factory=list)
@@ -170,12 +174,17 @@ class RagEvalRequest(BaseModel):
     endpoint_url: str | None = None
     endpoint_label: str = "mock-production-rag"
     mock_responses: dict[str, str] = Field(default_factory=dict)
+    demo_mode: bool = False
 
 
 class RagEvalSummary(BaseModel):
     total_cases_evaluated: int
-    avg_faithfulness: float
-    avg_relevance: float
-    abstention_accuracy: float
+    avg_faithfulness: float | None = None
+    avg_relevance: float | None = None
+    abstention_accuracy: float | None = None
     avg_latency_ms: float
+    avg_reference_token_recall: float | None = None
+    evaluation_mode: str = "recorded"
+    errors: int = 0
+    limitations: list[str] = Field(default_factory=list)
     results: list[dict[str, Any]] = Field(default_factory=list)

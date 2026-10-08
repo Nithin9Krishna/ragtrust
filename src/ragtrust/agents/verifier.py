@@ -31,14 +31,49 @@ class ValidationAgent(BaseAgent):
         start = time.time()
         if mode == "foundry":
             res = self._run_foundry(inputs)
+            res = self.enforce_evidence_contract(inputs, res)
             latency = (time.time() - start) * 1000
             self.record_usage(latency, tokens_est=450)
             return res
 
         res = self._run_fixture(inputs)
+        res = self.enforce_evidence_contract(inputs, res)
         latency = (time.time() - start) * 1000
         self.record_usage(latency, tokens_est=80)
         return res
+
+    @staticmethod
+    def enforce_evidence_contract(inputs: dict[str, Any], output: dict[str, Any]) -> dict[str, Any]:
+        """A model cannot override missing evidence, invalid citations, or its own failed claims."""
+        # Some Foundry judges return structured failure explanations. Preserve all
+        # fields as text; never drop the failure or turn it into a passing claim.
+        output = {**output, "failed_claims": [
+            json.dumps(item, ensure_ascii=False, sort_keys=True) if isinstance(item, dict) else item
+            for item in output.get("failed_claims", [])
+        ]}
+        result = VerificationOutput.model_validate(output).model_dump()
+        refs = inputs.get("evidence_refs", [])
+        valid = set(inputs.get("valid_locators", []))
+        invalid = [ref for ref in refs if ref not in valid]
+        answerable = inputs.get("expected_behavior", "answer") == "answer"
+        absent = answerable and (not refs or not inputs.get("evidence_segments"))
+        if inputs.get("expected_behavior") == "abstain" and not refs:
+            result["citation_valid"] = True
+        if invalid or absent:
+            result["citation_valid"] = False
+            result["suggested_status"] = CaseStatus.rejected
+            result["failed_claims"].append("Missing supporting evidence or invalid citation locator.")
+            result["concise_reason"] = "Rejected by deterministic evidence checks."
+        elif result["suggested_status"] == CaseStatus.accepted and (
+            not result["citation_valid"] or result["failed_claims"]
+            or any(not c["is_supported"] or c["contradiction"] for c in result["claims"])
+        ):
+            result["suggested_status"] = CaseStatus.needs_revision
+            result["concise_reason"] = "Revision required: verifier reported unsupported claims or citation failures."
+        if answerable and not result["claims"]:
+            result["suggested_status"] = CaseStatus.needs_review
+            result["concise_reason"] = "No claim assessments returned; manual review is required."
+        return result
 
     def _run_fixture(self, inputs: dict[str, Any]) -> dict[str, Any]:
         question = inputs.get("question", "")
@@ -256,10 +291,12 @@ Return ONLY valid JSON matching:
                 "candidate_reference_answer": inputs.get("candidate_reference_answer"),
                 "expected_behavior": inputs.get("expected_behavior"),
                 "evidence_segments": [
-                    {"locator": s.get("locator"), "text": s.get("text")[:400]}
+                    {"locator": s.get("locator"), "text": s.get("text", "")[:4000]}
                     for s in inputs.get("evidence_segments", [])
                 ],
                 "evidence_refs": inputs.get("evidence_refs", []),
+                "required_facts": inputs.get("required_facts", []),
+                "valid_locators": sorted(inputs.get("valid_locators", [])),
             }
         )
         raw_output = client.run_agent_chat("ValidationAgent", system_prompt, user_input)
@@ -268,4 +305,6 @@ Return ONLY valid JSON matching:
             cleaned = cleaned[7:-3].strip()
         elif cleaned.startswith("```"):
             cleaned = cleaned[3:-3].strip()
+        # run() normalizes failure explanations and validates the complete
+        # evidence contract. Do not validate before that normalization boundary.
         return json.loads(cleaned)

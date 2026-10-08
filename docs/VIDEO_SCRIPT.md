@@ -1,51 +1,63 @@
-# RAGTrust Demo Video Script
+# RAGTrust recording walkthrough and narration
 
-## 0:00–0:30 — Problem and promise
+Historical document notice — this script preserves the September 26, 2026 submission snapshot. Its sign-in, hosted Foundry run, and 35-test narration describe that earlier private workflow. They are superseded for the October 8 public launch configuration, which uses anonymous temporary sessions and deterministic fixtures with Foundry disabled. Public launch verification is pending. Follow [the public demo guide](PUBLIC_DEMO.md) for a current public walkthrough; do not narrate these historical live-run instructions over public fixture output.
 
-“RAG applications can sound confident even when their answers are unsupported. Teams need high-quality evaluation data, but building it manually is slow and difficult to audit. RAGTrust is a multi-agent system that generates synthetic RAG evaluation cases, verifies every claim independently, and publishes a traceable evaluation release.”
+Suggested length: 5-7 minutes, unless the submission form sets a different limit. These are your speaking notes, not a claim that a video has already been recorded. Sign in before recording. Hide credentials and private files.
 
-Show the RAGTrust home page and point to the workflow stages.
+## 0:00-0:40 - The actual idea
 
-## 0:30–1:15 — Inputs and project setup
+Show the RAGTrust application.
 
-“A domain expert starts by creating a project. Golden examples teach the system the intended domain and answer style. Source documents provide the evidence boundary. RAGTrust hashes and stores each source, extracts addressable evidence segments, and refuses to treat a scanned PDF as evidence when OCR has not been performed.”
+“My project is RAGTrust. The product creates synthetic evaluation datasets for RAG applications. A team may have a small collection of trusted questions and answers, but needs more test coverage. Simply generating hundreds of questions is not enough: the new answers can be unsupported, duplicated, or unevenly distributed. RAGTrust combines generation with separate evidence-based verification and makes the result inspectable. The main deliverable is the dataset itself. Connecting a target chatbot is optional.”
 
-Create or open the security/compliance demo project. Show the golden CSV and policy source.
+## 0:40-1:20 - Trusted input and evidence
 
-## 1:15–2:20 — Multi-agent architecture
+Open the IT Security sample project. Show the golden examples and policy source. Explain that security is just the demo domain.
 
-“The first Foundry agent understands the dataset and produces topic quotas, difficulty mix, and gap disclosures. The second Foundry agent generates provisional questions and candidate answers grounded in exact evidence locators. The third agent is independent: it does not receive the generator’s confidence or rationale. It decomposes the answer into claims and verifies each claim against the original evidence. A fourth agent performs bounded repair when a case is fixable. If a repair limit is reached or confidence is insufficient, the case goes to human review.”
+“Golden examples teach the intended topics and answer style. Source documents provide the evidence boundary. RAGTrust extracts segments with locators and stores source hashes. An answer should be grounded in those segments, not just sound plausible. Calibration and held-out examples are excluded from generation seeds. Text and text-extractable PDFs work; timestamped transcripts have a narrow supported path. A scanned PDF is marked as needing OCR. This version does not understand raw images, audio, or video.”
 
-Show the architecture diagram and the four agents in Microsoft Foundry.
+## 1:20-2:30 - Architecture and four roles
 
-## 2:20–3:20 — Run and quality controls
+Show the final report's architecture diagram, then the four version-2 assets in Foundry if available.
 
-“I choose the candidate target, accepted target, and repair limit, then start a live Foundry run. Models do semantic work, but deterministic Python controls the trust boundary. It validates citation existence, normalizes source IDs into immutable locators, detects exact and near duplicates, calculates topic coverage and distribution divergence, and records parent-child repair history.”
+“The web interface runs on Azure App Service. A Python orchestrator coordinates four named Microsoft Foundry prompt agents using the existing GPT-4o deployment. These are versioned prompt assets, not four always-running containers. The application owns sequencing, data storage, validation, and exports.
 
-Start a small run. Show progress, cases, metrics, and a case-level explanation.
+“The first role understands the dataset and proposes a coverage plan. Code checks that topic quotas match the requested count. The second role generates provisional questions and answers with evidence references. Provisional means they are not trusted yet.
 
-## 3:20–4:10 — Human review and immutable release
+“The third role receives the candidate and original evidence, without the generator's confidence or rationale. It breaks the answer into claims and checks their support. Deterministic code still overrides an acceptance if the cited evidence is missing or invalid. Independence means separate requests and responsibilities; the roles use the same model and can share errors.
 
-“Accepted, rejected, repairable, and uncertain cases remain visible. A reviewer can approve, reject, or correct a case. When the dataset is ready, RAGTrust creates an immutable version containing canonical JSONL, flattened CSV, case-level assessments, a human-readable HTML report, and a machine-readable summary. Hashes and provenance make the release auditable.”
+“The fourth role repairs fixable cases using failed claims and evidence. Each repair creates a linked attempt and is verified again. Unresolved cases go to review after the configured limit. Coverage gaps are reported, but automatic repeated generation to fill every gap is future work.”
 
-Show review controls, then the generated release files and report.
+## 2:30-3:35 - Run and inspect a case
 
-## 4:10–4:45 — Optional target RAG evaluation
+Choose Microsoft Foundry mode. On Run & Monitor set candidate target 2, accepted target 1, repair limit 1, and the smallest valid budget covering two candidates. Leave quotas empty for the planner or supply a valid two-case quota. Start once and use Refresh progress. Do not repeatedly start runs if a provider call is slow.
 
-“Dataset quality and system quality are separate. After release, the same approved cases can optionally be sent to a target RAG endpoint. Its answers, latency, relevance, faithfulness estimate, and abstention behavior are reported separately, so a weak target system cannot contaminate the dataset-quality claim.”
+“This is a small live run to stay within the available quota. The interface records progress and reports failures or target shortfalls explicitly. It never turns a failed live request into a fake fixture success. The offline fixture mode is separately labelled.
 
-Show the optional RAG testing section without claiming a production target if none is connected.
+“Here is a case: its question, candidate reference answer, source locator, and verification result. The question is accepted only through the workflow; that is not a human accuracy guarantee. Unsupported claims are repaired, rejected, or reviewed. The complete attempt history remains available.”
 
-## 4:45–5:20 — Azure proof and conclusion
+If live execution is delayed, disclose it and show the included completed live sample instead. Do not present fixture output as live output.
 
-“The four role agents are persisted and versioned in the existing Microsoft Foundry project, use the deployed GPT-4o model, and emit traces to Application Insights when configured. In the verified live run, RAGTrust generated two cases, independently accepted both, achieved complete topic coverage, and found no duplicates. Twenty-six automated tests cover the API, orchestration, repair history, citations, duplicates, calibration, releases, and extraction.”
+## 3:35-4:35 - Quality, review, release
 
-End on the public application URL, repository contents, and quality report.
+Show Dataset Quality and Case Inspector, then Export & Release.
 
-## Claims to avoid in the video
+“Dataset quality reports accepted-case topic coverage, exact duplicates, lexical near-duplicate candidates, and distribution distance. The near-duplicate metric is a character-trigram heuristic, not a semantic embedding benchmark. Faithfulness is an automated claim-support estimate. Factual F1 is not assessed when there is no independently trusted answer to the exact generated question. Human correctness also remains unassessed without a representative audit.
 
-- Do not say Ragas produced the current scores.
-- Do not claim raw image, audio, or video understanding.
-- Do not call automated scores human correctness.
-- Do not claim the local SQLite/in-process-worker build is horizontally scalable.
-- Do not display `.env`, connection strings, tokens, passwords, or subscription secrets.
+“A reviewer can approve, reject, or correct the latest attempt. Correcting an answer invalidates the old automated scores. Releasing a completed run produces five files: canonical JSONL, flattened CSV, case assessments, an HTML quality report, and a JSON summary. A new release creates a new version without changing the earlier files.”
+
+## 4:35-5:05 - Optional downstream RAG test
+
+Open the RAG Target Test stage. Do not claim a real target was tested if none is connected.
+
+“After release, I can test a separate public HTTPS RAG endpoint or import recorded responses. The target receives the question, not the reference answer. This adapter reports latency, failures, reference-token recall, and heuristic abstention matching. It does not claim semantic faithfulness, factual accuracy, or retrieval precision from word overlap. Dataset quality and target-system performance remain separate.”
+
+## 5:05-6:00 - Evidence and honest conclusion
+
+Show the measured sample quality report and final report.
+
+“Thirty-five automated tests passed, covering the API lifecycle, citations, unsupported claims, repair history, failed runs, held-out separation, release behavior, access protection, and safe reporting. The included version-2 live sample generated two cases and accepted both, met its two topic quotas, and recorded no duplicates. This proves the demonstrated connectivity and workflow; two cases do not establish general accuracy.
+
+“The current release is a working text-first demonstration. The free Azure host can cold-start, and its worker is not restart-resumable. Production scaling, per-user identity, raw-media processing, semantic metric calibration, exact cost accounting, and representative human audits remain future work. RAGTrust's value is a traceable route from small trusted examples to an inspected, reusable evaluation dataset.”
+
+End on the app URL and the final report. Add your own repository and video links only after publishing them. Course submission is a separate final step.

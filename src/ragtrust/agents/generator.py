@@ -102,7 +102,7 @@ class GenerationAgent(BaseAgent):
                 difficulty=difficulty,
                 modality=modality,
                 seed_ids=seed_ids,
-                source_version_ids=[seg.get("source_asset_id")] if seg else [],
+                source_version_ids=[seg["source_asset_id"]] if seg and seg.get("source_asset_id") else [],
                 evidence_refs=evidence_refs,
                 required_facts=required_facts,
                 reference_origin="automatically_derived",
@@ -144,9 +144,10 @@ Output JSON list of objects matching:
             {
                 "target_count": count,
                 "plan": plan,
+                "golden_examples": golden_examples[:20],
                 "evidence_snippets": [
-                    {"id": s.get("id"), "locator": s.get("locator"), "text": s.get("text")[:300]}
-                    for s in evidence_segments[:12]
+                    {"id": s.get("id"), "locator": s.get("locator"), "source_asset_id": s.get("source_asset_id"), "modality": s.get("modality", "text"), "text": s.get("text", "")[:2000]}
+                    for s in evidence_segments[:24]
                 ],
             }
         )
@@ -171,4 +172,12 @@ Output JSON list of objects matching:
                 id_to_locator.get(str(reference), reference)
                 for reference in candidate.get("evidence_refs", [])
             ]
-        return candidates
+            cited = set(candidate["evidence_refs"])
+            candidate["source_version_ids"] = sorted({
+                str(s["source_asset_id"]) for s in evidence_segments
+                if s.get("locator") in cited and s.get("source_asset_id")
+            })
+            seed_ids = {str(g.get("id")) for g in golden_examples}
+            candidate["seed_ids"] = [str(s) for s in candidate.get("seed_ids", []) if str(s) in seed_ids]
+            candidate["reference_origin"] = "automatically_derived"
+        return [CandidatePayload.model_validate(candidate).model_dump() for candidate in candidates[:count]]

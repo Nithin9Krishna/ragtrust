@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from contextvars import copy_context
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,7 @@ from .agents.rag_eval import RagEvaluationAgent
 from .agents.repair import RefinementRepairAgent
 from .agents.verifier import ValidationAgent
 from .config import settings
-from .db import init_db, session_scope
+from .db import init_db, session_scope, workspace_data_dir
 from .models import (
     CandidateCase,
     DatasetVersion,
@@ -32,7 +33,7 @@ from .models import (
     now,
     uid,
 )
-from .schemas import CaseStatus, GenerationConfig, RagEvalRequest, RunStatus
+from .schemas import CandidatePayload, CaseStatus, GenerationConfig, RagEvalRequest, RunStatus
 from .services.deterministic import DeterministicQualityEngine
 from .services.export import DatasetExporter
 from .services.reporting import QualityReportGenerator
@@ -58,8 +59,13 @@ class OrchestrationService:
     ) -> str:
         """Create a durable queued run and execute it in a local background worker."""
         run_mode = mode or settings.mode
+        if settings.public_demo and run_mode != "fixture":
+            raise ValueError("Public demo supports fixture generation only")
         if config.candidate_target > settings.max_candidates:
             raise ValueError(f"candidate_target exceeds configured maximum of {settings.max_candidates}")
+        if settings.public_demo and any(worker.is_alive() for worker in self._jobs.values()):
+            raise ValueError("Wait for your active generation run to finish before starting another")
+        self._jobs = {key: worker for key, worker in self._jobs.items() if worker.is_alive()}
         with session_scope() as session:
             if not session.get(Project, project_id):
                 raise ValueError("Project not found")
@@ -69,9 +75,10 @@ class OrchestrationService:
                 progress_json={"stage": "queued", "completed": 0},
             )
             session.add(run); session.commit(); run_id = run.id
+        context = copy_context()
         worker = threading.Thread(
-            target=self._execute_background,
-            args=(run_id, project_id, config, run_mode),
+            target=context.run,
+            args=(self._execute_background, run_id, project_id, config, run_mode),
             daemon=True,
             name=f"ragtrust-{run_id[:8]}",
         )
@@ -176,6 +183,42 @@ class OrchestrationService:
             return asset.id
 
     def execute_generation_run(
+        self, project_id: str, config: GenerationConfig, mode: str | None = None,
+        existing_run_id: str | None = None,
+    ) -> str:
+        run_mode = mode or settings.mode
+        if settings.public_demo and run_mode != "fixture":
+            raise ValueError("Public demo supports fixture generation only")
+        if run_mode not in {"fixture", "foundry"}:
+            raise ValueError("Unknown execution mode")
+        if config.candidate_target > settings.max_candidates:
+            raise ValueError("candidate_target exceeds configured maximum")
+        with session_scope() as session:
+            if not session.get(Project, project_id):
+                raise ValueError("Project not found")
+            if existing_run_id:
+                run = session.get(GenerationRun, existing_run_id)
+                if not run or run.project_id != project_id:
+                    raise ValueError("Queued run not found in this project")
+            else:
+                run = GenerationRun(id=uid(), project_id=project_id, mode=run_mode,
+                    status=RunStatus.queued.value, config_json=config.model_dump())
+                session.add(run)
+                session.commit()
+            run_id = run.id
+        try:
+            return self._execute_generation_run(project_id, config, run_mode, run_id)
+        except Exception as exc:
+            with session_scope() as session:
+                run = session.get(GenerationRun, run_id)
+                run.status = RunStatus.failed.value
+                run.error = f"{type(exc).__name__}: {str(exc)[:500]}"
+                run.completed_at = now()
+                run.progress_json = {**(run.progress_json or {}), "stage": "failed"}
+                session.commit()
+            raise
+
+    def _execute_generation_run(
         self,
         project_id: str,
         config: GenerationConfig,
@@ -204,7 +247,7 @@ class OrchestrationService:
         with session_scope() as session:
             golden = [
                 {"id": g.id, "external_id": g.external_id, "question": g.question, "trusted_answer": g.trusted_answer, "topic": g.topic}
-                for g in session.scalars(select(GoldenExample).where(GoldenExample.project_id == project_id)).all()
+                for g in session.scalars(select(GoldenExample).where(GoldenExample.project_id == project_id, GoldenExample.benchmark_role == "seed")).all()
             ]
             proj = session.get(Project, project_id)
             domain = proj.domain if proj else "general"
@@ -227,6 +270,15 @@ class OrchestrationService:
                 for seg, asset in raw_segs
             ]
 
+        if not golden:
+            raise ValueError("Import at least one golden seed example before generation.")
+        if not evidence:
+            # Golden-only operation is deliberately restricted to the trusted seed facts.
+            evidence = [
+                {"id": g["id"], "source_asset_id": None, "locator": f"golden:{g['id']}",
+                 "modality": "text", "text": g["trusted_answer"], "start_seconds": None, "end_seconds": None}
+                for g in golden
+            ]
         valid_locators = {s["locator"] for s in evidence}
 
         # Step 1: Planning Agent
@@ -247,6 +299,7 @@ class OrchestrationService:
             {"plan": plan, "golden_examples": golden, "evidence_segments": evidence, "count": generation_count},
             mode=run_mode,
         )
+        candidates_raw = [CandidatePayload.model_validate(c).model_dump() for c in candidates_raw[:generation_count]]
 
         # Step 3: Exact Deduplication Check. Assign IDs before checking so duplicate
         # identifiers are stable and actionable rather than empty placeholders.
@@ -272,7 +325,6 @@ class OrchestrationService:
                     session.commit()
                     return run_id
                 c_id = cand_data["id"]
-                original_candidate = json.loads(json.dumps(cand_data))
                 is_exact_dupe = c_id in exact_dupes
 
                 # Run independent Validation Agent
@@ -289,25 +341,24 @@ class OrchestrationService:
                     mode=run_mode,
                 )
 
-                initial_status = val_output.get("suggested_status", CaseStatus.accepted)
+                initial_status = val_output.get("suggested_status", CaseStatus.needs_review)
                 if is_exact_dupe:
                     initial_status = CaseStatus.rejected
                     val_output["failed_claims"].append("Exact duplicate detected.")
                     val_output["concise_reason"] = "Rejected: exact duplicate of another candidate."
 
                 final_status = initial_status
-                initial_val_output = json.loads(json.dumps(val_output, default=str))
-                repaired_from_id: str | None = None
-
-                # Attempt repair if needs_revision
-                if initial_status == CaseStatus.needs_revision and config.max_repairs > 0:
+                # Every repair is a new linked attempt, followed by independent verification.
+                for attempt in range(min(config.max_repairs, settings.max_repairs)):
+                    if final_status != CaseStatus.needs_revision:
+                        break
                     repairs_count += 1
                     repair_res = self.repairer.run(
                         {
                             "candidate": cand_data,
                             "failed_claims": val_output.get("failed_claims", []),
                             "evidence_segments": evidence,
-                            "max_repairs": config.max_repairs,
+                            "max_repairs": min(config.max_repairs, settings.max_repairs),
                         },
                         mode=run_mode,
                     )
@@ -328,8 +379,8 @@ class OrchestrationService:
                         )
                         # Preserve the original failed attempt before creating a linked revision.
                         self._persist_case_and_metrics(
-                            session, c_id, run_id, project_id, original_candidate,
-                            initial_status, initial_val_output, run_mode,
+                            session, c_id, run_id, project_id, cand_data,
+                            final_status, val_output, run_mode,
                         )
                         repaired_from_id = c_id
                         c_id = uid()
@@ -338,9 +389,13 @@ class OrchestrationService:
                         cand_data["parent_attempt_id"] = repaired_from_id
                         cand_data["attempt_number"] = int(repaired_cand.get("attempt_number", 1))
                         val_output = reval_output
-                        final_status = reval_output.get("suggested_status", CaseStatus.accepted)
+                        final_status = reval_output.get("suggested_status", CaseStatus.needs_review)
                     else:
                         final_status = repair_res.get("status", CaseStatus.needs_review)
+                        break
+                if final_status == CaseStatus.needs_revision:
+                    final_status = CaseStatus.needs_review
+                    val_output["concise_reason"] += " Repair budget exhausted; manual review required."
 
                 # Track counters
                 if final_status == CaseStatus.accepted:
@@ -377,12 +432,16 @@ class OrchestrationService:
                         "concise_reason": val_output.get("concise_reason", ""),
                     }
                 )
+                current_run.progress_json = {"stage": "verifying", "generated": len(created_cases),
+                    "accepted": accepted_count, "rejected": rejected_count, "needs_review": review_count,
+                    "repairs": repairs_count}
+                session.commit()
 
             session.commit()
 
         # Step 5: Dataset-level evaluation
         topic_coverage = DeterministicQualityEngine.evaluate_topic_coverage(
-            [c["topic"] for c in created_cases],
+            [c["topic"] for c in created_cases if c["status"] == CaseStatus.accepted.value],
             plan.get("topic_quotas", {}),
         )
         semantic_dupes = DeterministicQualityEngine.detect_semantic_duplicates(created_cases)
@@ -410,6 +469,9 @@ class OrchestrationService:
             "semantic_duplicate_pairs": semantic_dupes,
             "jensen_shannon_divergence": js_dist,
             "avg_faithfulness": round(avg_faithfulness, 4) if avg_faithfulness is not None else None,
+            "coverage_population": "accepted final attempts",
+            "similarity_method": "lexical n-gram cosine heuristic; not calibrated semantic embeddings",
+            "metric_evaluated_count": len(accepted_with_scores),
         }
 
         # Step 6: Determine Run Status
@@ -442,7 +504,17 @@ class OrchestrationService:
             "shortfall": shortfall,
             "dataset_metrics": dataset_metrics,
             "limitations": limitations,
+            "execution_provenance": {
+                "model_or_engine": "fixture-rules-v1" if run_mode == "fixture" else settings.model_deployment_name,
+                "foundry_agent_version": settings.agent_version if run_mode == "foundry" else None,
+                "uses_deployed_agents": run_mode == "foundry" and settings.use_deployed_agents,
+            },
         }
+        progress_summary["limitations"].extend([
+            "Factual correctness is not assessed without an independent trusted answer to the same question.",
+            "Near-duplicate detection is a lexical heuristic, not a calibrated semantic judge.",
+            "Budget units cap candidate volume; they are not Azure token or currency estimates.",
+        ])
 
         with session_scope() as session:
             r = session.get(GenerationRun, run_id)
@@ -482,7 +554,7 @@ class OrchestrationService:
         session.add(row); session.flush()
         metrics = [
             ("faithfulness", verification.get("faithfulness_score")),
-            ("factual_f1", verification.get("factual_f1")),
+            ("factual_f1", None),
             ("completeness", verification.get("completeness_score")),
             ("answer_relevance", verification.get("relevance_score")),
             ("answerability", verification.get("answerability_score")),
@@ -496,7 +568,8 @@ class OrchestrationService:
                 applicability="assessed" if score is not None else "not_assessed",
                 evidence_ids=data.get("evidence_refs", []),
                 failed_claims=verification.get("failed_claims", []),
-                concise_reason=verification.get("concise_reason", ""),
+                concise_reason=("Not assessed: no independent trusted reference for this exact generated question."
+                    if name == "factual_f1" else verification.get("concise_reason", "")),
             ))
 
     def release_dataset_version(self, run_id: str) -> str:
@@ -507,6 +580,9 @@ class OrchestrationService:
             run = session.get(GenerationRun, run_id)
             if not run:
                 raise ValueError("Run not found")
+
+            if run.status not in {RunStatus.completed.value, RunStatus.completed_shortfall.value}:
+                raise ValueError("Only a completed run can be released")
 
             project_id = run.project_id
             existing_versions = session.scalars(
@@ -545,6 +621,8 @@ class OrchestrationService:
             all_cases_in_run = session.scalars(
                 select(CandidateCase).where(CandidateCase.run_id == run_id)
             ).all()
+            parent_ids = {c.parent_attempt_id for c in all_cases_in_run if c.parent_attempt_id}
+            final_cases = [c for c in all_cases_in_run if c.id not in parent_ids]
             all_cases_data = []
             for c in all_cases_in_run:
                 assessments = session.scalars(
@@ -555,6 +633,8 @@ class OrchestrationService:
                     "attempt_number": c.attempt_number, "question": c.question,
                     "candidate_reference_answer": c.candidate_reference_answer,
                     "status": c.status, "failed_checks": c.failed_checks,
+                    "topic": c.topic, "difficulty": c.difficulty, "scenario_type": c.scenario_type,
+                    "modality": c.modality, "is_final_attempt": c.id not in parent_ids,
                     "evidence_refs": c.evidence_refs, "reference_origin": c.reference_origin,
                     "metrics": [
                         {"name": m.metric_name, "score": m.score, "scale": m.scale,
@@ -564,6 +644,32 @@ class OrchestrationService:
                         for m in assessments
                     ],
                 })
+            assessment_lookup = {c["id"]: c for c in all_cases_data}
+            for case in cases_data:
+                case["metrics"] = {
+                    ("factual_correctness" if m["name"] == "factual_f1" else m["name"]): m
+                    for m in assessment_lookup[case["case_id"]]["metrics"]
+                }
+            accepted_coverage = DeterministicQualityEngine.evaluate_topic_coverage(
+                [c.topic for c in accepted_cases], (run.plan_json or {}).get("topic_quotas", {}))
+            accepted_scores = [m["score"] for c in accepted_cases for m in assessment_lookup[c.id]["metrics"]
+                if m["name"] == "faithfulness" and m["score"] is not None]
+            release_metrics = {**(run.progress_json or {}).get("dataset_metrics", {}),
+                "topic_coverage": accepted_coverage,
+                "jensen_shannon_divergence": DeterministicQualityEngine.compute_jensen_shannon_divergence(
+                    (run.plan_json or {}).get("topic_quotas", {}),
+                    {topic: sum(c.topic == topic for c in accepted_cases) for topic in {c.topic for c in accepted_cases}}),
+                "avg_faithfulness": sum(accepted_scores) / len(accepted_scores) if accepted_scores else None,
+                "metric_evaluated_count": len(accepted_scores),
+                "before_filtering": {"final_candidate_count": len(final_cases)},
+                "after_filtering": {"accepted_count": len(accepted_cases)},
+                "slices": {
+                    dimension: {
+                        value: {"total": sum(getattr(c, dimension) == value for c in final_cases),
+                            "accepted": sum(getattr(c, dimension) == value and c.status == "accepted" for c in final_cases)}
+                        for value in sorted({getattr(c, dimension) for c in final_cases})
+                    } for dimension in ("topic", "difficulty", "scenario_type", "modality")
+                }}
             source_inventory = [
                 {"source_id": src.id, "filename": src.filename, "sha256": src.sha256,
                  "version": src.version, "extraction_status": src.extraction_status}
@@ -571,7 +677,7 @@ class OrchestrationService:
             ]
 
         # Export canonical JSONL and flattened CSV
-        rel_dir = settings.data_dir / "releases" / f"proj_{project_id}_v{version_number}"
+        rel_dir = workspace_data_dir() / "releases" / f"proj_{project_id}_v{version_number}"
         jsonl_path = rel_dir / "dataset.jsonl"
         csv_path = rel_dir / "dataset.csv"
         html_report_path = rel_dir / "quality_report.html"
@@ -593,17 +699,22 @@ class OrchestrationService:
                 "usage_or_cost": "Not available from fixture mode" if run.mode == "fixture" else "Provider usage was not returned by this SDK path",
             },
             "source_inventory": source_inventory,
+            "accepted": len(accepted_cases),
+            "rejected": sum(c.status == CaseStatus.rejected.value for c in final_cases),
+            "needs_review": sum(c.status in {CaseStatus.needs_review.value, CaseStatus.needs_revision.value} for c in final_cases),
+            "shortfall": max(0, run.config_json.get("accepted_target", 0) - len(accepted_cases)),
             "provenance": {
                 "dataset_version": version_number,
                 "model_or_engine": "fixture-rules-v1" if run.mode == "fixture" else settings.model_deployment_name,
                 "agent_prompt_version": "ragtrust-agent-prompts-v1",
                 "metric_version": "ragtrust-1.0",
                 "application_version": "0.1.0",
+                **(run.progress_json or {}).get("execution_provenance", {}),
             },
         }
         summary_json = QualityReportGenerator.generate_summary_json(
             run_data=run_payload,
-            dataset_metrics=run.progress_json.get("dataset_metrics", {}),
+            dataset_metrics=release_metrics,
         )
         json_report_path.parent.mkdir(parents=True, exist_ok=True)
         json_report_path.write_text(json.dumps(summary_json, indent=2), encoding="utf-8")
@@ -654,10 +765,17 @@ class OrchestrationService:
             case = session.get(CandidateCase, case_id)
             if not case:
                 raise ValueError("Case not found")
+            if decision not in {"approve", "reject", "correct"}:
+                raise ValueError("Invalid review decision")
+            if decision == "correct" and not (corrected_answer or "").strip():
+                raise ValueError("A non-empty corrected answer is required")
+            if session.scalar(select(CandidateCase).where(CandidateCase.parent_attempt_id == case_id)):
+                raise ValueError("Review the latest attempt; this case has a newer revision")
 
             # Update status
             if decision == "approve":
                 case.status = CaseStatus.accepted.value
+                case.reference_origin = "human_verified"
             elif decision == "reject":
                 case.status = CaseStatus.rejected.value
             elif decision == "correct":
@@ -665,6 +783,10 @@ class OrchestrationService:
                 if corrected_answer:
                     case.candidate_reference_answer = corrected_answer
                 case.reference_origin = "human_corrected"
+                for metric in session.scalars(select(MetricAssessment).where(MetricAssessment.case_id == case_id)).all():
+                    metric.score = None
+                    metric.applicability = "not_assessed"
+                    metric.concise_reason = "Answer changed by a reviewer; previous scores do not apply to the corrected text."
 
             rev = ReviewDecision(
                 id=uid(),
@@ -683,22 +805,12 @@ class OrchestrationService:
             if not dv:
                 raise ValueError("Dataset version not found")
 
-            cases = session.scalars(
-                select(CandidateCase).where(
-                    CandidateCase.run_id == dv.run_id,
-                    CandidateCase.status == CaseStatus.accepted.value,
-                )
-            ).all()
-
-            cases_data = [
-                {
-                    "id": c.id,
-                    "question": c.question,
-                    "expected_behavior": c.expected_behavior,
-                    "candidate_reference_answer": c.candidate_reference_answer,
-                }
-                for c in cases
-            ]
+            # Evaluate the frozen release, never mutable post-release case rows.
+            cases_data = [json.loads(line) for line in Path(dv.storage_path).read_text().splitlines() if line.strip()]
+            if settings.public_demo and len(cases_data) > 20:
+                raise ValueError("Public RAG tests support at most 20 cases per release")
+            for case in cases_data:
+                case["id"] = case.get("case_id")
 
         results = self.rag_evaluator.run({"cases": cases_data, "config": request})
 

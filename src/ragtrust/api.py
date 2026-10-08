@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
+import hmac
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from sqlalchemy import select
 
 from .db import session_scope
+from .config import settings
 from .models import (
     CandidateCase,
     DatasetVersion,
@@ -50,8 +52,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-service = OrchestrationService()
-storage = LocalStorage()
+if settings.public_demo:
+    # The shared API is blocked by middleware in anonymous UI deployments.
+    service = None
+    storage = None
+else:
+    service = OrchestrationService()
+    storage = LocalStorage()
+
+
+@app.middleware("http")
+async def require_demo_access(request: Request, call_next):
+    if settings.public_demo and request.url.path != "/health":
+        return JSONResponse({"detail": "Public demo exposes the isolated Streamlit UI only"}, status_code=403)
+    if settings.access_password and request.url.path != "/health":
+        supplied = request.headers.get("X-RAGTrust-Key", "")
+        if not hmac.compare_digest(supplied.encode(), settings.access_password.encode()):
+            return JSONResponse({"detail": "RAGTrust access key required"}, status_code=401)
+    return await call_next(request)
 
 
 @app.get("/health")
@@ -209,7 +227,9 @@ def create_generation_run(
             raise HTTPException(status_code=404, detail="Project not found")
 
     run_id = service.execute_generation_run(project_id=id, config=config, mode=mode)
-    return {"id": run_id, "run_id": run_id, "status": "completed", "mode": mode}
+    with session_scope() as session:
+        run = session.get(GenerationRun, run_id)
+        return {"id": run_id, "run_id": run_id, "status": run.status, "mode": mode}
 
 
 @app.post("/projects/{id}/generation-jobs", tags=["Runs"])

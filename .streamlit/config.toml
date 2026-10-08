@@ -1,0 +1,6 @@
+[server]
+maxUploadSize = 5
+disconnectedSessionTTL = 120
+
+[browser]
+gatherUsageStats = false

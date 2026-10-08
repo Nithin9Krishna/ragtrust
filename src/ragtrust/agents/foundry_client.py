@@ -22,11 +22,15 @@ class FoundryAgentClient:
 
     @classmethod
     def get_instance(cls) -> FoundryAgentClient:
+        if settings.public_demo:
+            raise ValueError("Live Foundry calls are disabled in the public demo")
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
 
     def _init_client(self):
+        if settings.public_demo:
+            return
         if not settings.has_foundry_config:
             logger.info("Microsoft Foundry credentials not provided; operating in fixture mode.")
             return
@@ -76,6 +80,8 @@ class FoundryAgentClient:
         """
         Runs an agent with system instructions against Azure AI Foundry models.
         """
+        if settings.public_demo:
+            raise ValueError("Live Foundry calls are disabled in the public demo")
         if not self.openai_client:
             raise RuntimeError("Live Microsoft Foundry client is not available. Check Azure credentials and settings.")
 
@@ -96,6 +102,7 @@ class FoundryAgentClient:
                         "agent_reference": {
                             "name": foundry_agent_name(agent_name),
                             "type": "agent_reference",
+                            **({"version": settings.agent_version} if settings.agent_version else {}),
                         }
                     },
                 )
