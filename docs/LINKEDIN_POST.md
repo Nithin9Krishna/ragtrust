@@ -1,25 +1,28 @@
 # LinkedIn launch post
 
-Ready to copy following the October 8, 2026 public launch verification. This post has not been published to LinkedIn. Attach [the launch graphic](assets/ragtrust-linkedin.png) when sharing.
+Ready to copy following the October 8, 2026 public launch verification. This post has not been published to LinkedIn. Attach [the illustrated user manual](RAGTrust_User_Manual.pdf) when sharing. The [launch graphic](assets/ragtrust-linkedin.png) is also available.
 
 ## Ready-to-copy post
 
-How do you test a RAG app when you only have a handful of trusted examples?
+Building a RAG app? How are you testing the answers it returns?
 
-I've been building RAGTrust to make that workflow easier to inspect: start with golden Q&A and source evidence, create evaluation cases, review the checks, and export a versioned dataset.
+I've launched RAGTrust, an open-source tool for building and reviewing evaluation datasets for retrieval-augmented generation systems.
 
-The public demo gives each browser session a temporary workspace. You can:
+You can use the public demo to:
 
 - Load the included IT-security sample or upload non-confidential demo data.
-- Follow planning, generation, validation, bounded repairs, and human review.
+- Generate candidate cases, inspect evidence checks, and review or correct answers.
 - Download JSONL/CSV datasets with case assessments and quality reports.
 - Compare your RAG's recorded answers, or connect a compatible public HTTPS endpoint, against a released dataset.
 
-One important limit: the public workspace uses deterministic fixtures, not live AI generation. Its endpoint comparison reports latency, errors, lexical overlap, and abstention phrase matching. Those scores are not proof of factual accuracy or faithfulness. The source also includes an optional Microsoft Foundry integration for running the agent workflow in your own environment.
+Please refer to the attached user manual when trying the demo. It walks you through importing data, generating and reviewing cases, releasing a dataset, testing your RAG, and understanding the results.
+
+The public demo uses deterministic fixtures for generation and verification. RAG comparisons report lexical overlap, latency, errors, and abstention phrase matching; these signals do not establish factual accuracy or faithfulness.
 
 Try it: https://ragtrust-sainithin-public-2026.azurewebsites.net/
 Source: https://github.com/Nithin9Krishna/ragtrust
+User manual: https://github.com/Nithin9Krishna/ragtrust/blob/main/docs/USER_MANUAL.md
 
-If you build RAG systems, try a small example, download your exports, and tell me which failure case or evaluation signal you'd want next. Feedback and GitHub issues are welcome.
+Try a small example, download your results, and share what worked or which failure case you'd like to test next. Feedback and GitHub issues are welcome.
 
-#RAG #LLMEvaluation #OpenSource #MicrosoftFoundry
+#RAG #GenerativeAI #LLMEvaluation #OpenSource #AIEngineering
