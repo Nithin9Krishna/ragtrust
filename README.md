@@ -8,6 +8,8 @@ RAGTrust is a working multi-agent application for creating, independently valida
 
 [Open the public demo](https://ragtrust-sainithin-public-2026.azurewebsites.net/) · [Source on GitHub](https://github.com/Nithin9Krishna/ragtrust) · [Report an issue](https://github.com/Nithin9Krishna/ragtrust/issues)
 
+[Download the illustrated user manual (PDF)](docs/RAGTrust_User_Manual.pdf) · [Read the user guide online](docs/USER_MANUAL.md). The nine-page manual covers imports, generation and review, releases, recorded-answer and public-endpoint tests, results, and troubleshooting.
+
 Launched October 8, 2026. The public MIT-licensed repository uses the `main` branch and accepts issues. The hosted demo opens an anonymous Streamlit workspace in fixture mode. Each browser session gets a separate temporary directory and SQLite database. Foundry inference is disabled at the client boundary. The public host does not expose the FastAPI lifecycle API.
 
 Start with [the public demo guide](docs/PUBLIC_DEMO.md): load the included sample, inspect and release a dataset, then compare recorded RAG answers or connect a compatible public HTTPS endpoint. Use only non-confidential demonstration uploads. Public sessions reset on the next interaction after two hours; disconnected sessions have a 120-second reconnect window. Download exports before leaving. The public demo is not durable storage or an account-based service.
