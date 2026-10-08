@@ -6,7 +6,7 @@ RAGTrust creates a traceable synthetic evaluation dataset from trusted golden ex
 
 ## Public launch architecture: October 8, 2026
 
-Launch verification is pending. This describes the public fixture configuration being prepared for the existing Azure host. The September private Foundry deployment and measured local live run remain historical evidence, described below.
+The public fixture launch was verified on October 8, 2026, on the existing Azure host. The September private Foundry deployment and measured local live run remain historical evidence, described below.
 
 ```mermaid
 flowchart LR
@@ -106,7 +106,7 @@ Factual F1 remains not assessed without an independently trusted answer to the e
 
 ## Public launch verification
 
-The suite includes public-session isolation and endpoint transport checks as part of the launch work. New test results, repository publication, and hosted public access verification are pending. See [the deployment manifest](DEPLOYMENT_MANIFEST.md) for the launch receipt when finalized.
+All 88 tests passed locally and in GitHub Actions on Python 3.11 and 3.13, including public-session isolation and endpoint transport controls. The repository is public and anonymous hosted access, sample generation, release/download, recorded-response comparison, and a separate visitor workspace were verified. See [the deployment manifest](DEPLOYMENT_MANIFEST.md) for the launch receipt.
 
 ## Historical verification: September 26 submission snapshot
 

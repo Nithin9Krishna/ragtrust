@@ -1,6 +1,6 @@
 # RAGTrust: upload and recording checklist
 
-Historical document notice — this checklist preserves the September 26, 2026 submission snapshot and its earlier private hosted Foundry workflow. Its private-password, repository-upload, live-host, and 35-test statements describe that snapshot. The October 8 public launch configuration supersedes the hosted access instructions with anonymous temporary fixture sessions and disables Foundry. Public launch verification is pending. Use [the current README](../README.md) and [deployment manifest](DEPLOYMENT_MANIFEST.md) for publication status; course submission remains a separate user action.
+Historical document notice — this checklist preserves the September 26, 2026 submission snapshot and its earlier private hosted Foundry workflow. Its private-password, repository-upload, live-host, and 35-test statements describe that snapshot. The October 8 public launch configuration supersedes the hosted access instructions with anonymous temporary fixture sessions and disables Foundry. The public launch was verified on October 8, 2026; see the current deployment manifest. Use [the current README](../README.md) and [deployment manifest](DEPLOYMENT_MANIFEST.md) for publication status; course submission remains a separate user action.
 
 Prepared 24 September 2026. The project files are prepared; the video and course submission still belong to you.
 

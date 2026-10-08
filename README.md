@@ -2,11 +2,13 @@
 
 RAGTrust is a working multi-agent application for creating, independently validating, reviewing, and exporting synthetic evaluation datasets for retrieval-augmented generation systems.
 
-Public demo: https://ragtrust-sainithin-public-2026.azurewebsites.net/
+[![Tests](https://github.com/Nithin9Krishna/ragtrust/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Nithin9Krishna/ragtrust/actions/workflows/ci.yml)
 
-Source: https://github.com/Nithin9Krishna/ragtrust
+[![RAGTrust — Test your RAG. Inspect the evidence.](docs/assets/ragtrust-linkedin.png)](docs/LINKEDIN_POST.md)
 
-The October 8, 2026 public launch configuration opens an anonymous Streamlit workspace in fixture mode. Each browser session gets a separate temporary directory and SQLite database. Foundry inference is disabled at the client boundary. The public host does not expose the FastAPI lifecycle API. Launch publication, hosted access, and the current test results are pending verification.
+[Open the public demo](https://ragtrust-sainithin-public-2026.azurewebsites.net/) · [Source on GitHub](https://github.com/Nithin9Krishna/ragtrust) · [Report an issue](https://github.com/Nithin9Krishna/ragtrust/issues)
+
+Launched October 8, 2026. The public MIT-licensed repository uses the `main` branch and accepts issues. The hosted demo opens an anonymous Streamlit workspace in fixture mode. Each browser session gets a separate temporary directory and SQLite database. Foundry inference is disabled at the client boundary. The public host does not expose the FastAPI lifecycle API.
 
 Start with [the public demo guide](docs/PUBLIC_DEMO.md): load the included sample, inspect and release a dataset, then compare recorded RAG answers or connect a compatible public HTTPS endpoint. Use only non-confidential demonstration uploads. Public sessions reset on the next interaction after two hours; disconnected sessions have a 120-second reconnect window. Download exports before leaving. The public demo is not durable storage or an account-based service.
 
@@ -175,6 +177,8 @@ Useful endpoints include:
 .venv/bin/pytest -q
 ```
 
+The launch verification passed 88 local tests. [GitHub Actions](https://github.com/Nithin9Krishna/ragtrust/actions/runs/37858292405) passed on Python 3.11 and 3.13 for runtime commit [`abb38ee`](https://github.com/Nithin9Krishna/ragtrust/commit/abb38ee01e86741511ba19dac2ee1667074e0b4e), including session-isolation and endpoint transport checks.
+
 ## Deploy and verify the Foundry agents
 
 The deployment command creates a new immutable version of each named agent in the configured existing project. It does not create a Foundry resource, project, or model deployment.
@@ -199,7 +203,7 @@ The UI is available on port 8501 and the API on port 8000. The same image can ru
 
 The container configuration is included, but the image was not executed locally because the Docker daemon was unavailable. The Azure source deployment is a separate package.
 
-The suite covers API behavior, end-to-end orchestration, evidence checks, duplicates, calibration, bounded repair, immutable releases, extraction, and failure handling. Public-session isolation and endpoint transport tests are part of the launch verification work; current results are pending. The September submission snapshot recorded 35 passing tests and is preserved as historical evidence below.
+The suite covers API behavior, end-to-end orchestration, evidence checks, duplicates, calibration, bounded repair, immutable releases, extraction, failure handling, public-session isolation, and endpoint transport controls. The September submission snapshot recorded 35 passing tests and is preserved as historical evidence below.
 
 ## Execution architecture
 
@@ -230,6 +234,12 @@ Dataset-level metrics and immutable release
 
 The public demo runs these four roles as deterministic fixtures. Optional live mode uses four separately persisted Foundry prompt-agent definitions, which are versioned server-side assets. Numerical aggregation, hashes, citation existence, duplicate rates, coverage, and distributions are computed by Python.
 
+## Verified public launch: October 8, 2026
+
+The original Azure URL serves the anonymous fixture workspace without a password. A browser walkthrough loaded 30 golden examples, two source assets, and 12 evidence segments; generated four cases with two accepted; froze version 1; and downloaded a two-row JSONL dataset. A second browser tab started with no projects, confirming separate workspaces.
+
+The recorded-response comparison evaluated two clearly synthetic smoke-test answers with zero errors and the fixture-response checkbox unchecked. This verifies the capture/comparison workflow, not a real RAG quality benchmark. Public endpoint transport controls passed automated tests; a cloud-hosted live endpoint test is not claimed. See [the deployment manifest](docs/DEPLOYMENT_MANIFEST.md) for the receipt and export checksum.
+
 ## Historical verification: September 26 submission snapshot
 
 These measurements describe the earlier local/private Foundry submission. They do not verify the October 8 public fixture launch.
@@ -247,4 +257,4 @@ No additional Foundry resource or model deployment was provisioned for that snap
 
 ## Submission materials
 
-Read [the deployment manifest](docs/DEPLOYMENT_MANIFEST.md) for the public launch configuration and historical evidence boundaries. [The final report](docs/FINAL_REPORT.md), [video script](docs/VIDEO_SCRIPT.md), and [submission checklist](docs/SUBMISSION_CHECKLIST.md) preserve the September submission snapshot, including its private hosted Foundry workflow. Their private-password and live-host instructions are superseded by the October 8 public fixture configuration. [The LinkedIn draft](docs/LINKEDIN_POST.md) is ready to finalize after launch verification; it has not been posted.
+Read [the deployment manifest](docs/DEPLOYMENT_MANIFEST.md) for the public launch receipt and historical evidence boundaries. [The final report](docs/FINAL_REPORT.md), [video script](docs/VIDEO_SCRIPT.md), and [submission checklist](docs/SUBMISSION_CHECKLIST.md) preserve the September submission snapshot, including its private hosted Foundry workflow. Their private-password and live-host instructions are superseded by the October 8 public fixture configuration. [The LinkedIn post](docs/LINKEDIN_POST.md) and [launch graphic](docs/assets/ragtrust-linkedin.png) are ready to share; the post has not been published to LinkedIn.

@@ -1,9 +1,10 @@
 # Try the RAGTrust public demo
 
-Launch verification note: the addresses below are planned publication targets. Public access and the final hosted session configuration must be verified before announcing the launch.
+Launched and verified October 8, 2026. Open the demo without a password, or explore the public MIT-licensed repository and its issue tracker.
 
 - [Open the demo](https://ragtrust-sainithin-public-2026.azurewebsites.net/)
 - [Browse the source](https://github.com/Nithin9Krishna/ragtrust)
+- [Report an issue](https://github.com/Nithin9Krishna/ragtrust/issues)
 
 The public workspace demonstrates the evaluation workflow with deterministic fixtures. Microsoft Foundry calls are disabled for the public workspace, including at the client boundary. The source includes a separate, optional Foundry mode for your own local/private deployment. The hosted service exposes Streamlit, without a separately hosted public API.
 
@@ -58,5 +59,11 @@ The adapter sends the evaluation question. It does not send the reference answer
 - **Semantic answer quality, factual accuracy, faithfulness, and retrieval quality** are not established by this adapter. Human correctness and evaluator reliability remain unassessed until representative human labels are supplied.
 
 The **Use clearly labelled fixture responses** option copies reference answers solely to demonstrate the comparison screen. It is not a test of an external RAG system.
+
+## Launch verification
+
+The anonymous browser walkthrough loaded the supplied sample, generated four fixture cases with two accepted, froze version 1, and downloaded a two-row JSONL dataset. A second browser tab opened with no projects. A recorded-response smoke test evaluated two clearly synthetic answers with zero errors and the fixture-response checkbox unchecked.
+
+These checks demonstrate the hosted workflow and session separation. They do not benchmark a real RAG system or prove answer accuracy. Endpoint transport controls passed automated tests; no cloud-hosted live endpoint test is claimed. See [the deployment manifest](DEPLOYMENT_MANIFEST.md) for exact evidence and [the passing CI run](https://github.com/Nithin9Krishna/ragtrust/actions/runs/37858292405) for Python 3.11/3.13 checks.
 
 For broader evaluation or private data, run the source locally and configure the optional live integration in your own environment. See [the README](../README.md) for installation and supported deployment modes.

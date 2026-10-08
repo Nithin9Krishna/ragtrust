@@ -1,8 +1,8 @@
 # LinkedIn launch post
 
-Editorial note — remove this note before sharing: the public repository and hosted demo URLs below are the planned launch addresses. Verify both are publicly accessible and the hosted workspace uses the public fixture configuration before posting. This draft has not been published to LinkedIn.
+Ready to copy following the October 8, 2026 public launch verification. This post has not been published to LinkedIn. Attach [the launch graphic](assets/ragtrust-linkedin.png) when sharing.
 
-## Ready-to-paste post
+## Ready-to-copy post
 
 How do you test a RAG app when you only have a handful of trusted examples?
 

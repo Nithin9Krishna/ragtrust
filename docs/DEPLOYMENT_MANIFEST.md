@@ -1,12 +1,12 @@
 # RAGTrust Deployment Manifest
 
-Public launch preparation: 2026-10-08 (America/Chicago). Publication and hosted verification are pending; no completed launch is claimed by this manifest yet.
+Public launch verified: October 8, 2026 (America/Chicago).
 
 ## October 8 public launch configuration
 
-- Planned repository: https://github.com/Nithin9Krishna/ragtrust
+- Public repository: https://github.com/Nithin9Krishna/ragtrust — MIT license, default branch `main`, issues enabled.
 - Demo URL: https://ragtrust-sainithin-public-2026.azurewebsites.net/
-- Hosting: existing Azure App Service F1 Free Linux/Python 3.11 plan in Canada Central; no plan upgrade.
+- Hosting: existing Azure App Service F1 Free plan `ragtrust-free-canada` in Canada Central; no plan upgrade. Linux runtime: Python 3.11.15.
 - Service: anonymous Streamlit UI with `RAGTRUST_PUBLIC_DEMO=true` and `RAGTRUST_MODE=fixture`.
 - Inference: deterministic fixtures for planning, generation, verification, and repair. Foundry calls are blocked at the client boundary.
 - Storage: separate `TemporaryDirectory` and SQLite database for each browser session, including its uploads and releases.
@@ -18,7 +18,21 @@ Public launch preparation: 2026-10-08 (America/Chicago). Publication and hosted 
 
 ## Public launch verification record
 
-Pending: clean public repository publication, deployment of the fixture configuration, anonymous browser access, independent session workspaces, sample generation/release, downloads, and recorded-response comparison. The suite includes session-isolation and endpoint transport tests; current run results are pending. The free host can cold-start or exhaust its allowance.
+Azure deployment `8cf68053-45d3-427c-a8e7-5d5de012da9e` completed successfully at `2026-10-08T23:17:55.233471Z` (6:17:55 PM America/Chicago), with `status=4`, `complete=true`, and `active=true`. The original application URL and F1 plan remain in use.
+
+All 24 Python runtime files in the deployed archive match the published local source snapshot byte for byte.
+
+- Health endpoint `/_stcore/health`: HTTP 200 with body `ok`.
+- Anonymous browser access: no password required; only the fixture engine was offered. Public fixture mode was enabled and Foundry inference blocked.
+- Sample ingestion: 30 golden examples, two source assets, and 12 evidence segments loaded.
+- Completed fixture run: `7fc5ab1c-25fd-4b68-a2b6-272fbfefcde7`. Four cases generated, two accepted, one repair, one rejected, one requiring review, and zero target shortfall.
+- Release/export: version 1 frozen and JSONL downloaded through the browser. The downloaded file contained two rows with SHA-256 `5b6536db6832cc894c16c67c1c9bd1b35979f2fadac929af98e8fb74923e448b`.
+- Recorded-response comparison: two clearly synthetic smoke-test strings were supplied as a question-to-answer mapping. Two responses evaluated with zero errors; the fixture-response checkbox remained unchecked.
+- Session separation: a second browser tab started with no projects, then was closed.
+- Automated verification: 88 local tests passed. [GitHub Actions run 37858292405](https://github.com/Nithin9Krishna/ragtrust/actions/runs/37858292405) passed on Python 3.11 and 3.13 for runtime commit [`abb38ee01e86741511ba19dac2ee1667074e0b4e`](https://github.com/Nithin9Krishna/ragtrust/commit/abb38ee01e86741511ba19dac2ee1667074e0b4e). The suite includes public-session isolation and endpoint transport controls.
+- Launch materials: [LinkedIn post](LINKEDIN_POST.md), [launch graphic](assets/ragtrust-linkedin.png), and [image prompt record](assets/IMAGE_PROMPT.md) are available in the repository. The post has not been published to LinkedIn.
+
+The browser checks verify fixture generation, release/download, session separation, and recorded-response capture. The synthetic smoke responses are not a real RAG quality benchmark. Endpoint transport controls were exercised by automated tests; this record does not claim a cloud-hosted live target-endpoint test. The free host can cold-start or exhaust its allowance.
 
 ## September 26 historical submission snapshot
 

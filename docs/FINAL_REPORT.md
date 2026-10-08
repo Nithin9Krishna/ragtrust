@@ -1,6 +1,6 @@
 # RAGTrust | Final implementation and demonstration report
 
-Historical document notice — this report preserves the September 26, 2026 submission snapshot, including the earlier private hosted Foundry workflow. The October 8 public launch configuration supersedes its private-password and live-host instructions: the public demo uses anonymous temporary sessions and deterministic fixtures with Foundry disabled. Public launch verification is pending. Use [the current README](../README.md), [public demo guide](PUBLIC_DEMO.md), and [deployment manifest](DEPLOYMENT_MANIFEST.md) for current configuration; the measurements below remain historical evidence.
+Historical document notice — this report preserves the September 26, 2026 submission snapshot, including the earlier private hosted Foundry workflow. The October 8 public launch configuration supersedes its private-password and live-host instructions: the public demo uses anonymous temporary sessions and deterministic fixtures with Foundry disabled. The public launch was verified on October 8, 2026; see the current deployment manifest. Use [the current README](../README.md), [public demo guide](PUBLIC_DEMO.md), and [deployment manifest](DEPLOYMENT_MANIFEST.md) for current configuration; the measurements below remain historical evidence.
 
 Prepared for Sai Nithin Krishna | Microsoft Agent-a-thon Architect | 25 September 2026
 

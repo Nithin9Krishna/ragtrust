@@ -1,6 +1,6 @@
 # RAGTrust recording walkthrough and narration
 
-Historical document notice — this script preserves the September 26, 2026 submission snapshot. Its sign-in, hosted Foundry run, and 35-test narration describe that earlier private workflow. They are superseded for the October 8 public launch configuration, which uses anonymous temporary sessions and deterministic fixtures with Foundry disabled. Public launch verification is pending. Follow [the public demo guide](PUBLIC_DEMO.md) for a current public walkthrough; do not narrate these historical live-run instructions over public fixture output.
+Historical document notice — this script preserves the September 26, 2026 submission snapshot. Its sign-in, hosted Foundry run, and 35-test narration describe that earlier private workflow. They are superseded for the October 8 public launch configuration, which uses anonymous temporary sessions and deterministic fixtures with Foundry disabled. The public launch was verified on October 8, 2026; see the current deployment manifest. Follow [the public demo guide](PUBLIC_DEMO.md) for a current public walkthrough; do not narrate these historical live-run instructions over public fixture output.
 
 Suggested length: 5-7 minutes, unless the submission form sets a different limit. These are your speaking notes, not a claim that a video has already been recorded. Sign in before recording. Hide credentials and private files.
 
